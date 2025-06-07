@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Griepe Container WebApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#004d99">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #f4f4f4; }
+    header { background-color: #004d99; color: white; padding: 15px; }
+    h1 { margin: 0; font-size: 24px; }
+    nav { background: #e0e0e0; padding: 10px; }
+    nav span { margin-right: 10px; cursor: pointer; padding: 5px 10px; border-radius: 4px; }
+    nav span.active { background-color: #004d99; color: white; font-weight: bold; }
+    .card {
+      border: 1px solid #ccc;
+      padding: 10px;
+      width: 200px;
+      background: #fff;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+    #containerCards { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 5px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🚢 Griepe Container WebApp</h1>
+  </header>
+
+  <nav>
+    <span id="btn_hauptseite" onclick="showTab('hauptseite')">🏠 Hauptseite</span>
+    <span id="btn_buch" onclick="showTab('buch')">📖 Buch</span>
+    <span id="btn_hellmann" onclick="showTab('hellmann')">📦 Hellmann</span>
+    <span id="btn_pcg" onclick="showTab('pcg')">🚛 PCG</span>
+    <span id="btn_stahlausgang" onclick="showTab('stahlausgang')">🏗️ Stahlausgang</span>
+    <span id="btn_ausgeliefert" onclick="showTab('ausgeliefert')">📤 Ausgeliefert</span>
+  </nav>
+
+  <main id="tabContent" style="padding: 20px;">Lade...</main>
+
+  <script>
+    function showTab(name) {
+      const tabs = ['hauptseite', 'buch', 'hellmann', 'pcg', 'stahlausgang', 'ausgeliefert'];
+      tabs.forEach(t => document.getElementById('btn_' + t).classList.remove('active'));
+      document.getElementById('btn_' + name).classList.add('active');
+
+      if (name === 'hauptseite') {
+        showStartpage();
+      } else {
+        fetch(name + ".html").then(r => r.text()).then(html => {
+          document.getElementById("tabContent").innerHTML = html;
+        });
+      }
+    }
+
+    function showStartpage() {
+      const html = `
+        <h2>📤 Ausgelieferte Container</h2>
+        <table id="deliveredTable">
+          <thead><tr><th>Container</th><th>Spedition</th><th>Kennzeichen</th><th>Zeit</th></tr></thead>
+          <tbody></tbody>
+        </table>
+
+        <h2>🏗️ Stahlausgang – Noch nicht ausgeliefert</h2>
+        <h3 id="bookingTitle">Buchung: (keine geladen)</h3>
+        <div id="containerCards"></div>
+
+        <h3>📥 Liste hochladen</h3>
+        <input type="file" id="excelFile" accept=".xlsx" />
+        <button onclick="startExcelUpload()">Upload starten</button>
+      `;
+      document.getElementById("tabContent").innerHTML = html;
+      showDeliveredTable();
+      showStahlausgangFromStorage();
+    }
+
+    function startExcelUpload() {
+      const fileInput = document.getElementById("excelFile");
+      if (!fileInput.files.length) {
+        alert("❗ Bitte eine Datei auswählen.");
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        const bookingRaw = rows[2]?.[0] || "";
+        const bookingMatch = bookingRaw.match(/HT\d+/);
+        const bookingNr = bookingMatch ? bookingMatch[0] : "(unbekannt)";
+
+        localStorage.setItem("stahl_booking", bookingNr);
+        localStorage.setItem("stahl_data", JSON.stringify(rows));
+
+        showStahlausgangFromStorage();
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function markAsDelivered(containerId) {
+      const spedition = prompt("Spedition eingeben:");
+      const kennzeichen = prompt("Kennzeichen eingeben:");
+      if (!spedition || !kennzeichen) return;
+
+      const timestamp = new Date().toLocaleString();
+      const delivered = JSON.parse(localStorage.getItem("ausgeliefert_liste") || "[]");
+      delivered.push({ container: containerId, spedition, kennzeichen, zeit: timestamp });
+      localStorage.setItem("ausgeliefert_liste", JSON.stringify(delivered));
+
+      const cards = document.querySelectorAll("#containerCards > div");
+      cards.forEach(card => {
+        if (card.innerHTML.includes(containerId)) card.remove();
+      });
+
+      showDeliveredTable();
+    }
+
+    function showDeliveredTable() {
+      const data = JSON.parse(localStorage.getItem("ausgeliefert_liste") || "[]");
+      const tbody = document.querySelector("#deliveredTable tbody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      data.forEach(entry => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${entry.container}</td><td>${entry.spedition}</td><td>${entry.kennzeichen}</td><td>${entry.zeit}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function showStahlausgangFromStorage() {
+      const rows = JSON.parse(localStorage.getItem("stahl_data") || "[]");
+      const bookingNr = localStorage.getItem("stahl_booking") || "(unbekannt)";
+      const titleEl = document.getElementById("bookingTitle");
+      if (titleEl) titleEl.innerText = "Buchung: " + bookingNr;
+
+      const cardContainer = document.getElementById("containerCards");
+      if (!cardContainer) return;
+      cardContainer.innerHTML = "";
+
+      rows.forEach((row, index) => {
+        if (index >= 11 && row.length > 1) {
+          const containerId = row[0] || "Unbekannt";
+          const card = document.createElement("div");
+          card.className = "card";
+          card.innerHTML = `
+            <strong>Container:</strong><br>${containerId}<br><br>
+            <button onclick="markAsDelivered('${containerId}')">✅ Ausgeliefert</button>
+          `;
+          cardContainer.appendChild(card);
+        }
+      });
+    }
+
+    window.onload = () => showTab('hauptseite');
+  </script>
+</body>
+</html>

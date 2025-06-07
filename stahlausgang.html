@@ -1,0 +1,74 @@
+
+<div>
+  <h2>🏗️ Stahlausgang</h2>
+  <h3 id="bookingTitle">Buchung: (keine geladen)</h3>
+  <div id="containerCards" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;"></div>
+</div>
+
+<script>
+function showStahlausgangFromStorage() {
+  const rows = JSON.parse(localStorage.getItem("stahl_data") || "[]");
+  const bookingNr = localStorage.getItem("stahl_booking") || "(unbekannt)";
+  document.getElementById("bookingTitle").innerText = "Buchung: " + bookingNr;
+
+  const cardContainer = document.getElementById("containerCards");
+  cardContainer.innerHTML = "";
+
+  rows.forEach((row, index) => {
+    if (index >= 11 && row.length > 1) {
+      const containerId = row[0] || "Unbekannt";
+
+      const card = document.createElement("div");
+      card.style.border = "1px solid #ccc";
+      card.style.padding = "10px";
+      card.style.width = "200px";
+      card.style.background = "#fff";
+      card.style.boxShadow = "2px 2px 5px rgba(0,0,0,0.1)";
+      card.innerHTML = `
+        <strong>Container:</strong><br>${containerId}<br><br>
+        <button onclick="markAsDelivered('${containerId}')">✅ Ausgeliefert</button>
+      `;
+
+      cardContainer.appendChild(card);
+    }
+  });
+}
+
+markAsDelivered(containerId) {
+  const spedition = prompt("Spedition eingeben:");
+  const kennzeichen = prompt("Kennzeichen eingeben:");
+  if (!spedition || !kennzeichen) return;
+
+  const timestamp = new Date().toLocaleString();
+
+  const delivered = JSON.parse(localStorage.getItem("ausgeliefert_liste") || "[]");
+  delivered.push({
+    container: containerId,
+    spedition: spedition,
+    kennzeichen: kennzeichen,
+    zeit: timestamp
+  });
+  localStorage.setItem("ausgeliefert_liste", JSON.stringify(delivered));
+
+  // Lösche die Karte (visuell)
+  const cards = document.querySelectorAll("#containerCards > div");
+  cards.forEach(card => {
+    if (card.innerHTML.includes(containerId)) card.remove();
+  });
+
+  alert(`✅ Container ${containerId} als ausgeliefert gespeichert.`);
+}
+(containerId) {
+  const spedition = prompt("Spedition eingeben:");
+  const kennzeichen = prompt("Kennzeichen eingeben:");
+  if (!spedition || !kennzeichen) return;
+
+  const timestamp = new Date().toLocaleString();
+  alert(`✅ Container ${containerId} als ausgeliefert markiert.\nSpedition: ${spedition}\nKennzeichen: ${kennzeichen}\nZeit: ${timestamp}`);
+  // Optional: Speicherung unter „ausgeliefert“ hier möglich
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  showStahlausgangFromStorage();
+});
+</script>

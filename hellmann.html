@@ -1,0 +1,117 @@
+
+<div>
+  <h2>📦 Hellmann – Containerverwaltung</h2>
+
+  <div style="margin-bottom: 15px;">
+    <input id="containerNummer" placeholder="Container-Nr" />
+    <button onclick="addHellmann()">Eintragen</button>
+  </div>
+
+  <div style="margin-bottom: 10px;">
+    Sortierung: <button onclick="toggleSort()">Status <span id="sortIcon">⬇️</span></button>
+  </div>
+
+  <div id="hellmannListe"></div>
+</div>
+
+<script>
+  let hellmannData = JSON.parse(localStorage.getItem("hellmann_container") || "[]");
+  let sortAsc = true;
+
+  function addHellmann() {
+    const nummer = document.getElementById("containerNummer").value.trim();
+    if (!nummer) return alert("Bitte Containernummer eingeben");
+
+    hellmannData.push({ nummer, status: "Leercontainer", siegel: "", timestamp: null, spedition: "", kennzeichen: "" });
+    saveAndRender();
+    document.getElementById("containerNummer").value = "";
+  }
+
+  function saveAndRender() {
+    localStorage.setItem("hellmann_container", JSON.stringify(hellmannData));
+    renderList();
+  }
+
+  function renderList() {
+    const listDiv = document.getElementById("hellmannListe");
+    listDiv.innerHTML = "";
+
+    let sorted = [...hellmannData];
+    sorted.sort((a, b) => {
+      if (a.status < b.status) return sortAsc ? -1 : 1;
+      if (a.status > b.status) return sortAsc ? 1 : -1;
+      return 0;
+    });
+
+    sorted.forEach((entry, i) => {
+      const wrapper = document.createElement("div");
+      wrapper.style.padding = "10px";
+      wrapper.style.marginBottom = "8px";
+      wrapper.style.border = "1px solid #ccc";
+      wrapper.style.background = statusColor(entry.status);
+
+      wrapper.innerHTML = `
+        <strong>${entry.nummer}</strong><br>
+        Status:
+        <select onchange="updateStatus(${i}, this.value)">
+          <option${entry.status === "Leercontainer" ? " selected" : ""}>Leercontainer</option>
+          <option${entry.status === "Angefordert" ? " selected" : ""}>Angefordert</option>
+          <option${entry.status === "Wird gepackt" ? " selected" : ""}>Wird gepackt</option>
+          <option${entry.status === "Bereit zur Abholung" ? " selected" : ""}>Bereit zur Abholung</option>
+        </select><br>
+        Siegelnummer: <input value="${entry.siegel}" onchange="updateSiegel(${i}, this.value)" /><br>
+        <button onclick="markAusgeliefert(${i})">✅ Ausgeliefert</button>
+      `;
+
+      listDiv.appendChild(wrapper);
+    });
+  }
+
+  function updateStatus(index, value) {
+    hellmannData[index].status = value;
+    saveAndRender();
+  }
+
+  function updateSiegel(index, value) {
+    hellmannData[index].siegel = value;
+    saveAndRender();
+  }
+
+  function toggleSort() {
+    sortAsc = !sortAsc;
+    document.getElementById("sortIcon").textContent = sortAsc ? "⬇️" : "⬆️";
+    renderList();
+  }
+
+  function markAusgeliefert(index) {
+    const spedition = prompt("Spedition:");
+    const kennzeichen = prompt("Kennzeichen:");
+    if (!spedition || !kennzeichen) return;
+
+    const eintrag = hellmannData[index];
+    eintrag.timestamp = new Date().toLocaleString();
+    eintrag.spedition = spedition;
+    eintrag.kennzeichen = kennzeichen;
+
+    // Schiebe in ausgeliefert
+    const ausgeliefert = JSON.parse(localStorage.getItem("ausgeliefert_liste") || "[]");
+    ausgeliefert.push({
+      container: eintrag.nummer,
+      spedition: spedition,
+      kennzeichen: kennzeichen,
+      zeit: eintrag.timestamp
+    });
+    localStorage.setItem("ausgeliefert_liste", JSON.stringify(ausgeliefert));
+
+    hellmannData.splice(index, 1);
+    saveAndRender();
+  }
+
+  function statusColor(status) {
+    if (status === "Angefordert") return "#fffacd";
+    if (status === "Bereit zur Abholung") return "#ccffcc";
+    return "white";
+  }
+
+  document.addEventListener("DOMContentLoaded", renderList);
+</script>

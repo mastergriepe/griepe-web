@@ -1,0 +1,23 @@
+
+<div>
+  <h2>📤 Ausgelieferte Container</h2>
+  <table id="deliveredTable" border="1" cellpadding="5" style="margin-top:10px; border-collapse: collapse;">
+    <thead>
+      <tr><th>Container</th><th>Spedition</th><th>Kennzeichen</th><th>Zeit</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+<script>
+function loadDelivered() {
+  const data = JSON.parse(localStorage.getItem("ausgeliefert_liste") || "[]");
+  const tbody = document.querySelector("#deliveredTable tbody");
+  tbody.innerHTML = "";
+  data.forEach(entry => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${entry.container}</td><td>${entry.spedition}</td><td>${entry.kennzeichen}</td><td>${entry.zeit}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+document.addEventListener("DOMContentLoaded", loadDelivered);
+</script>
